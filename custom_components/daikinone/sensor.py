@@ -854,7 +854,7 @@ async def async_setup_entry(
                 case DaikinSplitUnit():
                     entities += [
                         # ——— DaikinSplitUnit fields ———
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="mode",
                                 name="Mode",
@@ -863,10 +863,10 @@ async def async_setup_entry(
                                 icon="mdi:thermostat",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.mode,
+                            device=equipment,
+                            attribute=lambda e: e.mode,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="set_point_heat",
                                 name="Heat Setpoint",
@@ -877,10 +877,10 @@ async def async_setup_entry(
                                 icon="mdi:thermometer-chevron-up",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.set_point_heat.celsius,
+                            device=equipment,
+                            attribute=lambda e: e.set_point_heat.celsius,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="set_point_cool",
                                 name="Cool Setpoint",
@@ -891,10 +891,10 @@ async def async_setup_entry(
                                 icon="mdi:thermometer-chevron-down",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.set_point_cool.celsius,
+                            device=equipment,
+                            attribute=lambda e: e.set_point_cool.celsius,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="operating_time",
                                 name="Operating Time",
@@ -909,7 +909,7 @@ async def async_setup_entry(
                             device=equipment,
                             attribute=lambda e: e.operating_time,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="equipment_status",
                                 name="Equipment Status",
@@ -921,7 +921,7 @@ async def async_setup_entry(
                             device=equipment,
                             attribute=lambda e: e.equipment_status.name.capitalize(),
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="fan_speed_percent",
                                 name="Fan Speed",
@@ -934,7 +934,7 @@ async def async_setup_entry(
                             device=equipment,
                             attribute=lambda e: e.fan_speed_percent,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="flap_swing",
                                 name="Flap Swing",
@@ -947,7 +947,7 @@ async def async_setup_entry(
                             device=equipment,
                             attribute=lambda e: e.flap_swing,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="suction_temperature",
                                 name="Suction Temperature",
@@ -961,7 +961,7 @@ async def async_setup_entry(
                             device=equipment,
                             attribute=lambda e: e.suction_temperature.celsius,
                         ),
-                        DaikinOneThermostatSensor(
+                        DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
                                 key="discharge_temperature",
                                 name="Discharge Temperature",
@@ -977,6 +977,7 @@ async def async_setup_entry(
                         ),
                         # — end DaikinSplitUnit fields —
                     ]
+                case _:
                     log.warning(f"unexpected equipment: {equipment}")
 
     async_add_entities(entities, True)

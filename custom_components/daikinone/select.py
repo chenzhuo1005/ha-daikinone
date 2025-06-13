@@ -59,7 +59,7 @@ class DaikinOneFanSpeedSelect(DaikinOneEntity[DaikinThermostat], SelectEntity):
         """Change the selected option."""
         name = self._device.name.lower()
         # special case for P1/P2 mini‐multi‐split units
-        if "mini multi split" in name:
+        if "Split/Multi-Split Indoor Unit" in name:
             match option.upper():
                 case DaikinOneThermostatFanSpeed.LOW.name:
                     target_value = DaikinP1P2FanSpeed.LOW

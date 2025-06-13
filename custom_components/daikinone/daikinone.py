@@ -223,8 +223,8 @@ class DaikinThermostat(DaikinDevice):
     indoor_temperature: Temperature
     indoor_humidity: int
     set_point_heat: Temperature
-    set_point_heat_min: Temperature
     set_point_heat_max: Temperature
+    set_point_heat_min: Temperature
     set_point_cool: Temperature
     set_point_cool_min: Temperature
     set_point_cool_max: Temperature
