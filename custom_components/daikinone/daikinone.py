@@ -183,6 +183,12 @@ class DaikinThermostatFanSpeed(Enum):
     MEDIUM = 1
     HIGH = 2
 
+class DaikinP1P2FanSpeed(Enum):
+    AUTO = 0
+    LOW = 1
+    MEDIUM = 3
+    HIGH = 5
+
 @dataclass
 class DaikinSplitUnit(DaikinEquipment):
     # Basic unit info
@@ -321,6 +327,22 @@ class DaikinOne:
             body={"fanCirculateSpeed": fan_speed.value},
         )
 
+    async def set_p1p2_s21_num_fan_speeds_cooling(self, thermostat_id: str, value: int) -> None:
+        """Set P1/P2 S21 number of fan speeds for cooling (mini-multi-split)"""
+        await self.__req(
+            url=f"{DAIKIN_API_URL_DEVICE_DATA}/{thermostat_id}",
+            method="PUT",
+            body={"P1P2S21NumFanSpeedsCooling": value},
+        )
+
+    async def set_p1p2_s21_num_fan_speeds_heating(self, thermostat_id: str, value: int) -> None:
+        """Set P1/P2 S21 number of fan speeds for heating (mini-multi-split)"""
+        await self.__req(
+            url=f"{DAIKIN_API_URL_DEVICE_DATA}/{thermostat_id}",
+            method="PUT",
+            body={"P1P2S21NumFanSpeedsHeating": value},
+        )
+
     async def __refresh_thermostats(self):
         devices = await self.__req(DAIKIN_API_URL_DEVICE_DATA)
         devices = [DaikinDeviceDataResponse(**device) for device in devices]
@@ -330,7 +352,7 @@ class DaikinOne:
         log.info(f"Cached {len(self.__thermostats)} thermostats")
 
     def __map_thermostat(self, payload: DaikinDeviceDataResponse) -> DaikinThermostat:
-        #pprint(payload.dict())
+        pprint(payload.dict())
         capabilities = set(DaikinThermostatCapability)
         if payload.data["ctSystemCapHeat"]:
             capabilities.add(DaikinThermostatCapability.HEAT)

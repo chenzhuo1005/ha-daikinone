@@ -26,6 +26,7 @@ from custom_components.daikinone.daikinone import (
     DaikinEEVCoil,
     DaikinOutdoorUnitReversingValveStatus,
     DaikinOutdoorUnitHeaterStatus,
+    DaikinSplitUnit,
     DaikinThermostat,
     DaikinIndoorUnit,
     DaikinEquipment,
@@ -850,7 +851,132 @@ async def async_setup_entry(
                         ),
                     ]
 
-                case _:
+                case DaikinSplitUnit():
+                    entities += [
+                        # ——— DaikinSplitUnit fields ———
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="mode",
+                                name="Mode",
+                                has_entity_name=True,
+                                device_class=SensorDeviceClass.ENUM,
+                                icon="mdi:thermostat",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.mode,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="set_point_heat",
+                                name="Heat Setpoint",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                device_class=SensorDeviceClass.TEMPERATURE,
+                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                                icon="mdi:thermometer-chevron-up",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.set_point_heat.celsius,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="set_point_cool",
+                                name="Cool Setpoint",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                device_class=SensorDeviceClass.TEMPERATURE,
+                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                                icon="mdi:thermometer-chevron-down",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.set_point_cool.celsius,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="operating_time",
+                                name="Operating Time",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.TOTAL_INCREASING,
+                                device_class=SensorDeviceClass.DURATION,
+                                native_unit_of_measurement=UnitOfTime.MINUTES,
+                                suggested_unit_of_measurement=UnitOfTime.HOURS,
+                                icon="mdi:clock-outline",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.operating_time,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="equipment_status",
+                                name="Equipment Status",
+                                has_entity_name=True,
+                                device_class=SensorDeviceClass.ENUM,
+                                icon="mdi:information-outline",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.equipment_status.name.capitalize(),
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="fan_speed_percent",
+                                name="Fan Speed",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                native_unit_of_measurement=PERCENTAGE,
+                                icon="mdi:fan",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.fan_speed_percent,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="flap_swing",
+                                name="Flap Swing",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                native_unit_of_measurement=PERCENTAGE,
+                                icon="mdi:arrow-collapse-vertical",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.flap_swing,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="suction_temperature",
+                                name="Suction Temperature",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                device_class=SensorDeviceClass.TEMPERATURE,
+                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                                icon="mdi:thermometer",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.suction_temperature.celsius,
+                        ),
+                        DaikinOneThermostatSensor(
+                            description=SensorEntityDescription(
+                                key="discharge_temperature",
+                                name="Discharge Temperature",
+                                has_entity_name=True,
+                                state_class=SensorStateClass.MEASUREMENT,
+                                device_class=SensorDeviceClass.TEMPERATURE,
+                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                                icon="mdi:thermometer",
+                            ),
+                            data=data,
+                            device=thermostat,
+                            attribute=lambda d: d.discharge_temperature.celsius,
+                        ),
+                        # — end DaikinSplitUnit fields —
+                    ]
                     log.warning(f"unexpected equipment: {equipment}")
 
     async_add_entities(entities, True)
@@ -907,9 +1033,11 @@ class DaikinOneEquipmentSensor[E: DaikinEquipment](DaikinOneSensor[E]):
                 raise ValueError("unexpected entity uid schema version")
 
     async def async_get_device(self) -> E:
-        thermostat = self._data.daikin.get_thermostat(self._device.thermostat_id)
+        thermostat = self._data.daikin.get_thermostat(
+            self._device.thermostat_id)
         # TODO: look at this type issue more later
-        return thermostat.equipment[self._device.id]  # type: ignore[return-value]
+        # type: ignore[return-value]
+        return thermostat.equipment[self._device.id]
 
     def update_entity_attributes(self) -> None:
         self._attr_native_value = self._attribute(self._device)
