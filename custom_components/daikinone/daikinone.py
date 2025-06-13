@@ -352,7 +352,7 @@ class DaikinOne:
         log.info(f"Cached {len(self.__thermostats)} thermostats")
 
     def __map_thermostat(self, payload: DaikinDeviceDataResponse) -> DaikinThermostat:
-        pprint(payload.dict())
+        #pprint(payload.dict())
         capabilities = set(DaikinThermostatCapability)
         if payload.data["ctSystemCapHeat"]:
             capabilities.add(DaikinThermostatCapability.HEAT)
