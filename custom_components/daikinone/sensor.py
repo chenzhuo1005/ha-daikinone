@@ -906,8 +906,8 @@ async def async_setup_entry(
                                 icon="mdi:clock-outline",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.operating_time,
+                            device=equipment,
+                            attribute=lambda e: e.operating_time,
                         ),
                         DaikinOneThermostatSensor(
                             description=SensorEntityDescription(
@@ -918,8 +918,8 @@ async def async_setup_entry(
                                 icon="mdi:information-outline",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.equipment_status.name.capitalize(),
+                            device=equipment,
+                            attribute=lambda e: e.equipment_status.name.capitalize(),
                         ),
                         DaikinOneThermostatSensor(
                             description=SensorEntityDescription(
@@ -931,8 +931,8 @@ async def async_setup_entry(
                                 icon="mdi:fan",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.fan_speed_percent,
+                            device=equipment,
+                            attribute=lambda e: e.fan_speed_percent,
                         ),
                         DaikinOneThermostatSensor(
                             description=SensorEntityDescription(
@@ -944,8 +944,8 @@ async def async_setup_entry(
                                 icon="mdi:arrow-collapse-vertical",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.flap_swing,
+                            device=equipment,
+                            attribute=lambda e: e.flap_swing,
                         ),
                         DaikinOneThermostatSensor(
                             description=SensorEntityDescription(
@@ -958,8 +958,8 @@ async def async_setup_entry(
                                 icon="mdi:thermometer",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.suction_temperature.celsius,
+                            device=equipment,
+                            attribute=lambda e: e.suction_temperature.celsius,
                         ),
                         DaikinOneThermostatSensor(
                             description=SensorEntityDescription(
@@ -972,8 +972,8 @@ async def async_setup_entry(
                                 icon="mdi:thermometer",
                             ),
                             data=data,
-                            device=thermostat,
-                            attribute=lambda d: d.discharge_temperature.celsius,
+                            device=equipment,
+                            attribute=lambda e: e.discharge_temperature.celsius,
                         ),
                         # — end DaikinSplitUnit fields —
                     ]
