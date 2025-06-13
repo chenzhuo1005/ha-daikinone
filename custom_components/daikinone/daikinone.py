@@ -210,6 +210,16 @@ class DaikinSplitUnit(DaikinEquipment):
     operating_time: int        # Operating time in minutes (per P1/P2)
     equipment_status: DaikinThermostatStatus      # Equipment status code
 
+    # Additional P1/P2 fields
+    energized_time: int        # Cumulative energized time in minutes
+    fan_operation_time: int    # Cumulative fan operation time in minutes
+    eev_open_pulses: int       # EEV open pulses count
+    gas_pipe_temp: Temperature          # Heat exchanger gas pipe temperature
+    heat_exchanger_temp: Temperature    # Heat exchanger body temperature
+    fan_tap_active: bool       # Fan tap (swing) on/off status
+    humidifier_on: bool        # Auxiliary humidifier status
+    dehumidifier_on: bool      # Auxiliary dehumidifier status
+
 @dataclass
 class DaikinThermostat(DaikinDevice):
     location_id: str
@@ -352,7 +362,7 @@ class DaikinOne:
         log.info(f"Cached {len(self.__thermostats)} thermostats")
 
     def __map_thermostat(self, payload: DaikinDeviceDataResponse) -> DaikinThermostat:
-        #pprint(payload.dict())
+        pprint(payload.dict())
         capabilities = set(DaikinThermostatCapability)
         if payload.data["ctSystemCapHeat"]:
             capabilities.add(DaikinThermostatCapability.HEAT)
@@ -584,6 +594,14 @@ class DaikinOne:
 
                 # Cumulative operating time
                 operating_time     = d["P1P2IndoorUnitOperatingTime"],
+                energized_time         = d["P1P2IndoorUnitEnergizedTime"],
+                fan_operation_time     = d["P1P2IndoorUnitFanOperationTime"],
+                eev_open_pulses        = d["P1P2IndoorUnitEEVOpenPulses"],
+                gas_pipe_temp          = Temperature.from_celsius(d["P1P2IndoorUnitHeatExchangerGasPipeThermistor"]),
+                heat_exchanger_temp    = Temperature.from_celsius(d["P1P2IndoorUnitHeatExchangerThermistor"]),
+                fan_tap_active         = bool(d["P1P2IndoorUnitFanTap"]),
+                humidifier_on          = bool(d["AuxHumidifierStatus"]),
+                dehumidifier_on        = bool(d["AuxDehumidifierStatus"]),
             )
 
         return equipment
