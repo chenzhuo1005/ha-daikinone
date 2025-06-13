@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import ClientError
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
+from pprint import pprint
 
 from .exceptions import DaikinServiceException
 from custom_components.daikinone.utils import Temperature
@@ -182,6 +183,26 @@ class DaikinThermostatFanSpeed(Enum):
     MEDIUM = 1
     HIGH = 2
 
+@dataclass
+class DaikinSplitUnit(DaikinEquipment):
+    # Basic unit info
+    mode: str
+    indoor_temperature: Temperature
+    indoor_humidity: float
+    set_point_heat: Temperature
+    set_point_cool: Temperature
+
+    # Airflow settings
+    fan_speed_percent: int
+    flap_swing: int
+
+    # Coil temperatures
+    suction_temperature: Temperature
+    discharge_temperature: Temperature
+
+    # Usage statistics
+    operating_time: int        # Operating time in minutes (per P1/P2)
+    equipment_status: DaikinThermostatStatus      # Equipment status code
 
 @dataclass
 class DaikinThermostat(DaikinDevice):
@@ -309,6 +330,7 @@ class DaikinOne:
         log.info(f"Cached {len(self.__thermostats)} thermostats")
 
     def __map_thermostat(self, payload: DaikinDeviceDataResponse) -> DaikinThermostat:
+        #pprint(payload.dict())
         capabilities = set(DaikinThermostatCapability)
         if payload.data["ctSystemCapHeat"]:
             capabilities.add(DaikinThermostatCapability.HEAT)
@@ -496,6 +518,50 @@ class DaikinOne:
                 indoor_superheat_temperature=Temperature.from_fahrenheit(payload.data["ctEEVCoilSuperHeatValue"] / 10),
                 liquid_temperature=Temperature.from_fahrenheit(payload.data["ctEEVCoilSubCoolValue"] / 10),
                 suction_temperature=Temperature.from_fahrenheit(payload.data["ctEEVCoilSuctionTemperature"] / 10),
+            )
+
+        # Map Split / Multi-Split indoor unit via P1/P2 protocol
+        if payload.data.get("P1P2UnitType", 255) < 255:
+            model   = payload.data["P1P2IndoorUnitModelNameManual"].strip()
+            serial  = payload.data["P1P2IndoorUnitSerialNumber"].strip()
+            eid     = f"{model}-{serial}"
+            name    = "Split/Multi-Split Indoor Unit"
+
+            d = payload.data
+            equipment[eid] = DaikinSplitUnit(
+                id                 = eid,
+                thermostat_id      = payload.id,
+                name               = name,
+                model              = model,
+                firmware_version   = payload.firmware.strip(),
+                serial             = serial,
+
+                # Operating mode and status
+                mode              = {0: "Off",1:"Heat",2:"Cool"}.get(d["mode"], "Unknown"),
+                equipment_status  = DaikinThermostatStatus(d["P1P2S21equipmentStatus"]),
+
+                # Indoor temperature & humidity
+                indoor_temperature = Temperature.from_celsius(d["tempIndoor"]),
+                indoor_humidity    = d["humIndoor"],
+
+                # Active setpoints
+                set_point_heat     = Temperature.from_celsius(
+                        d["hspActive"] if (raw := d.get("P1P2hspFromEquipment", d["hspActive"])) == 65535 else raw
+                    ),
+                set_point_cool     = Temperature.from_celsius(
+                        d["cspActive"] if (raw := d.get("P1P2cspFromEquipment", d["cspActive"])) == 65535 else raw
+                    ),
+
+                # Fan controls
+                fan_speed_percent  = d["P1P2IndoorUnitFanSpeed"],    # Percent 0–100
+                flap_swing         = d["P1P2IndoorUnitFlapSwing"],   # Swing position 0–100
+
+                # Coil sensor readings
+                suction_temperature  = Temperature.from_celsius(d["P1P2IndoorSuctionAirThermistor"]),
+                discharge_temperature = Temperature.from_celsius(d["P1P2IndoorUnitDischargeAirThermistor"]),
+
+                # Cumulative operating time
+                operating_time     = d["P1P2IndoorUnitOperatingTime"],
             )
 
         return equipment
