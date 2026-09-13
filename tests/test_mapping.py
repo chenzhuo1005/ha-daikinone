@@ -149,6 +149,19 @@ P1P2_UNIT_DATA: dict[str, Any] = {
     "P1P2IndoorUnitHeatExchangerThermistorValid": True,
     "P1P2IndoorUnitFanTap": 1,
     "P1P2IndoorUnitFanTapValid": True,
+    "P1P2DrainPumpOnOff": True,
+    "P1P2DrainPumpOnOffValid": True,
+    "P1P2FloatOnOff": False,
+    "P1P2FloatOnOffValid": True,
+    "P1P2AntiFreezeControlOnOff": False,
+    "P1P2AntiFreezeControlOnOffValid": True,
+    "P1P2ElectricHeaterOnOff": False,
+    "P1P2ElectricHeaterOnOffValid": True,
+    "P1P2HumidifierOnOff": False,
+    "P1P2HumidifierOnOffValid": True,
+    "fault1Code": 144,
+    "fault1Date": 1789251868,
+    "fault1Level": 8,
     "AuxHumidifierStatus": 0,
     "AuxDehumidifierStatus": 0,
 }
@@ -187,6 +200,14 @@ class TestMappingPreservesValidFields:
         assert unit.discharge_temperature is None
         assert unit.eev_open_pulses == 0
         assert unit.gas_pipe_temp is not None
+        assert unit.drain_pump_on is True
+        assert unit.float_switch_on is False
+        assert unit.anti_freeze_on is False
+        assert unit.electric_heater_on is False
+        assert unit.humidifier_control_on is False
+        assert unit.recent_fault is not None
+        assert unit.recent_fault.code == 144
+        assert unit.recent_fault.level == 8
 
     async def test_air_handler_garbage_demand_becomes_none(self, daikin_client: DaikinOne) -> None:
         ah = {**AIR_HANDLER_DATA, "ctAHFanRequestedDemand": 255, "ctAHHeatRequestedDemand": 255}

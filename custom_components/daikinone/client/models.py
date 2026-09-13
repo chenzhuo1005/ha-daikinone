@@ -1,6 +1,6 @@
 """Domain models exposed by the Daikin client to the rest of the integration."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum, auto
 
 from pydantic.dataclasses import dataclass
@@ -159,6 +159,21 @@ class DaikinSplitUnit(DaikinEquipment):
     fan_tap_active: bool | None
     humidifier_on: bool | None
     dehumidifier_on: bool | None
+    drain_pump_on: bool | None
+    float_switch_on: bool | None
+    anti_freeze_on: bool | None
+    electric_heater_on: bool | None
+    humidifier_control_on: bool | None
+    recent_fault: "DaikinFault | None"
+
+
+@dataclass
+class DaikinFault:
+    """A recent fault record reported in the thermostat's history."""
+
+    code: int
+    occurred_at: datetime
+    level: int | None
 
 
 class DaikinThermostatCapability(Enum):

@@ -903,6 +903,8 @@ async def async_setup_entry(
 
                 case DaikinSplitUnit():
                     entities += _split_unit_sensors(data, equipment)
+                    if equipment.recent_fault is not None:
+                        entities.append(DaikinOneSplitFaultSensor(data, equipment))
 
                 case _:
                     log.warning(f"unexpected equipment: {equipment}")
@@ -921,6 +923,7 @@ def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[Sens
         device_class: SensorDeviceClass | None = None,
         unit_of_measurement: str | None = None,
         state_class: SensorStateClass | None = None,
+        entity_category: EntityCategory | None = None,
         icon: str | None = None,
     ) -> DaikinOneEquipmentSensor[DaikinSplitUnit]:
         return DaikinOneEquipmentSensor(
@@ -931,6 +934,7 @@ def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[Sens
                 device_class=device_class,
                 native_unit_of_measurement=unit_of_measurement,
                 state_class=state_class,
+                entity_category=entity_category,
                 icon=icon,
             ),
             data=data,
@@ -941,6 +945,7 @@ def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[Sens
     temperature = SensorDeviceClass.TEMPERATURE
     measurement = SensorStateClass.MEASUREMENT
     total = SensorStateClass.TOTAL_INCREASING
+    diagnostic = EntityCategory.DIAGNOSTIC
     return [
         sensor("mode", "Operation Mode", lambda e: e.mode.name.replace("_", " ").title(), device_class=SensorDeviceClass.ENUM),
         sensor(
@@ -966,7 +971,16 @@ def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[Sens
         sensor("fan_tap_active", "Fan Tap Active", lambda e: e.fan_tap_active, device_class=SensorDeviceClass.ENUM),
         sensor("humidifier_on", "Humidifier On", lambda e: e.humidifier_on, device_class=SensorDeviceClass.ENUM),
         sensor("dehumidifier_on", "Dehumidifier On", lambda e: e.dehumidifier_on, device_class=SensorDeviceClass.ENUM),
+        sensor("drain_pump", "Drain Pump", lambda e: _on_off(e.drain_pump_on), device_class=SensorDeviceClass.ENUM, entity_category=diagnostic),
+        sensor("float_switch", "Float Switch", lambda e: _on_off(e.float_switch_on), device_class=SensorDeviceClass.ENUM, entity_category=diagnostic),
+        sensor("anti_freeze", "Anti-freeze Control", lambda e: _on_off(e.anti_freeze_on), device_class=SensorDeviceClass.ENUM, entity_category=diagnostic),
+        sensor("electric_heater", "Electric Heater", lambda e: _on_off(e.electric_heater_on), device_class=SensorDeviceClass.ENUM, entity_category=diagnostic),
+        sensor("humidifier_control", "Humidifier Control", lambda e: _on_off(e.humidifier_control_on), device_class=SensorDeviceClass.ENUM, entity_category=diagnostic),
     ]
+
+
+def _on_off(value: bool | None) -> str | None:
+    return None if value is None else "On" if value else "Off"
 
 
 class DaikinOneSensor[D: DaikinDevice](DaikinOneEntity[D], SensorEntity):
@@ -1026,3 +1040,29 @@ class DaikinOneEquipmentSensor[E: DaikinEquipment](DaikinOneSensor[E]):
 
     def update_entity_attributes(self) -> None:
         self._attr_native_value = self._attribute(self._device)
+
+
+class DaikinOneSplitFaultSensor(DaikinOneEquipmentSensor[DaikinSplitUnit]):
+    """Expose the latest valid historical fault with its date and severity."""
+
+    def __init__(self, data: DaikinOneData, device: DaikinSplitUnit) -> None:
+        super().__init__(
+            description=SensorEntityDescription(
+                key="recent_fault",
+                name="Recent Fault",
+                has_entity_name=True,
+                device_class=SensorDeviceClass.ENUM,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                icon="mdi:alert-circle-outline",
+            ),
+            data=data,
+            device=device,
+            attribute=lambda e: f"Code {e.recent_fault.code}" if e.recent_fault else None,
+        )
+
+    def update_entity_attributes(self) -> None:
+        super().update_entity_attributes()
+        fault = self._device.recent_fault
+        self._attr_extra_state_attributes = (
+            {"occurred_at": fault.occurred_at.isoformat(), "level": fault.level} if fault else None
+        )

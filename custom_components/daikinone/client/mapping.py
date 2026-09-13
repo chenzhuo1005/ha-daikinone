@@ -1,10 +1,12 @@
 """Pure functions that turn a Daikin device-data payload into domain models."""
 
 import logging
+from datetime import UTC, datetime
 
 from custom_components.daikinone.client import fields as f
 from custom_components.daikinone.client.models import (
     DaikinEEVCoil,
+    DaikinFault,
     DaikinEquipment,
     DaikinIndoorUnit,
     DaikinOneAirQualitySensorIndoor,
@@ -280,6 +282,10 @@ def _map_p1p2_split_unit(payload: DaikinDeviceDataResponse) -> DaikinSplitUnit |
         """P1/P2 publishes a separate validity bit for its live telemetry."""
         return read(payload.data, field) if payload.data.get(valid_key) is True else None
 
+    def bool_when_valid(field: object, valid_key: str) -> bool | None:
+        value = read_when_valid(field, valid_key)
+        return None if value is None else bool(value)
+
     return DaikinSplitUnit(
         id=f"{model}-{serial}",
         thermostat_id=payload.id,
@@ -317,4 +323,31 @@ def _map_p1p2_split_unit(payload: DaikinDeviceDataResponse) -> DaikinSplitUnit |
         ),
         humidifier_on=optional_bool(f.F_P1P2_HUMIDIFIER),
         dehumidifier_on=optional_bool(f.F_P1P2_DEHUMIDIFIER),
+        drain_pump_on=bool_when_valid(f.F_P1P2_DRAIN_PUMP, "P1P2DrainPumpOnOffValid"),
+        float_switch_on=bool_when_valid(f.F_P1P2_FLOAT_SWITCH, "P1P2FloatOnOffValid"),
+        anti_freeze_on=bool_when_valid(f.F_P1P2_ANTI_FREEZE, "P1P2AntiFreezeControlOnOffValid"),
+        electric_heater_on=bool_when_valid(f.F_P1P2_ELECTRIC_HEATER, "P1P2ElectricHeaterOnOffValid"),
+        humidifier_control_on=bool_when_valid(f.F_P1P2_HUMIDIFIER_CONTROL, "P1P2HumidifierOnOffValid"),
+        recent_fault=_most_recent_fault(payload.data),
     )
+
+
+def _most_recent_fault(data: dict[str, object]) -> DaikinFault | None:
+    """Return the newest valid record from the thermostat fault-history slots."""
+    faults: list[DaikinFault] = []
+    for index in range(1, 26):
+        code = data.get(f"fault{index}Code")
+        timestamp = data.get(f"fault{index}Date")
+        level = data.get(f"fault{index}Level")
+        if not isinstance(code, int) or code in {0, 255, 65535}:
+            continue
+        if not isinstance(timestamp, int) or timestamp < 946684800:
+            continue
+        faults.append(
+            DaikinFault(
+                code=code,
+                occurred_at=datetime.fromtimestamp(timestamp, UTC),
+                level=level if isinstance(level, int) and level != 255 else None,
+            )
+        )
+    return max(faults, key=lambda fault: fault.occurred_at) if faults else None
