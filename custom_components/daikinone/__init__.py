@@ -82,8 +82,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # migrate to 1.2
         if entry.minor_version < 2:
-            entry.minor_version = 2
-
             # retain legacy id schema if this is an upgrade of an existing entry
             new[CONF_OPTION_ENTITY_UID_SCHEMA_VERSION_KEY] = 0
 
@@ -105,9 +103,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         )
                         break
 
-            entry.minor_version = 3
-
-        hass.config_entries.async_update_entry(entry, data=new)
+        hass.config_entries.async_update_entry(entry, data=new, minor_version=3)
 
     log.info("Migration to version %s.%s successful", entry.version, entry.minor_version)
 
