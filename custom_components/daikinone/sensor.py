@@ -21,16 +21,16 @@ from homeassistant.helpers.typing import StateType
 from custom_components.daikinone import DOMAIN, DaikinOneData
 from custom_components.daikinone.const import CONF_OPTION_ENTITY_UID_SCHEMA_VERSION_KEY
 from custom_components.daikinone.entity import DaikinOneEntity
-from custom_components.daikinone.daikinone import (
+from custom_components.daikinone.client.models import (
     DaikinDevice,
     DaikinEEVCoil,
     DaikinOutdoorUnitReversingValveStatus,
     DaikinOutdoorUnitHeaterStatus,
-    DaikinSplitUnit,
     DaikinThermostat,
     DaikinIndoorUnit,
     DaikinEquipment,
     DaikinOutdoorUnit,
+    DaikinSplitUnit,
 )
 
 log = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ async def async_setup_entry(
                 ),
                 data=data,
                 device=thermostat,
-                attribute=lambda d: d.indoor_temperature.celsius,
+                attribute=lambda d: d.indoor_temperature.celsius if d.indoor_temperature else None,
             ),
             DaikinOneThermostatSensor(
                 description=SensorEntityDescription(
@@ -92,6 +92,42 @@ async def async_setup_entry(
                 attribute=lambda d: d.indoor_humidity,
             ),
         ]
+
+        if thermostat.outdoor_temperature is not None:
+            entities.append(
+                DaikinOneThermostatSensor(
+                    description=SensorEntityDescription(
+                        key="outdoor_temperature",
+                        name="Outdoor Temperature",
+                        has_entity_name=True,
+                        state_class=SensorStateClass.MEASUREMENT,
+                        device_class=SensorDeviceClass.TEMPERATURE,
+                        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                        icon="mdi:thermometer",
+                    ),
+                    data=data,
+                    device=thermostat,
+                    attribute=lambda d: d.outdoor_temperature.celsius if d.outdoor_temperature else None,
+                )
+            )
+
+        if thermostat.outdoor_humidity is not None:
+            entities.append(
+                DaikinOneThermostatSensor(
+                    description=SensorEntityDescription(
+                        key="outdoor_humidity",
+                        name="Outdoor Humidity",
+                        has_entity_name=True,
+                        state_class=SensorStateClass.MEASUREMENT,
+                        device_class=SensorDeviceClass.HUMIDITY,
+                        native_unit_of_measurement="%",
+                        icon="mdi:water-percent",
+                    ),
+                    data=data,
+                    device=thermostat,
+                    attribute=lambda d: d.outdoor_humidity,
+                )
+            )
 
         if thermostat.air_quality_outdoor is not None:
             entities += [
@@ -260,17 +296,6 @@ async def async_setup_entry(
                     entities += [
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
-                                key="mode",
-                                name="Mode",
-                                has_entity_name=True,
-                                device_class=SensorDeviceClass.ENUM,
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.mode,
-                        ),
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
                                 key="airflow",
                                 name="Airflow",
                                 has_entity_name=True,
@@ -364,6 +389,21 @@ async def async_setup_entry(
                     ]
 
                     # optional indoor unit sensors
+                    if equipment.mode is not None:
+                        entities.append(
+                            DaikinOneEquipmentSensor(
+                                description=SensorEntityDescription(
+                                    key="mode",
+                                    name="Mode",
+                                    has_entity_name=True,
+                                    device_class=SensorDeviceClass.ENUM,
+                                ),
+                                data=data,
+                                device=equipment,
+                                attribute=lambda e: e.mode,
+                            )
+                        )
+
                     if equipment.cool_demand_requested_percent is not None:
                         entities.append(
                             DaikinOneEquipmentSensor(
@@ -431,18 +471,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.total_runtime.total_seconds(),
-                        ),
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="mode",
-                                name="Mode",
-                                has_entity_name=True,
-                                device_class=SensorDeviceClass.ENUM,
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.mode,
+                            attribute=lambda e: e.total_runtime.total_seconds() if e.total_runtime else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -600,7 +629,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.air_temperature.celsius,
+                            attribute=lambda e: e.air_temperature.celsius if e.air_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -614,7 +643,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.coil_temperature.celsius,
+                            attribute=lambda e: e.coil_temperature.celsius if e.coil_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -628,7 +657,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.discharge_temperature.celsius,
+                            attribute=lambda e: e.discharge_temperature.celsius if e.discharge_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -642,7 +671,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.liquid_temperature.celsius,
+                            attribute=lambda e: e.liquid_temperature.celsius if e.liquid_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -656,7 +685,9 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.defrost_sensor_temperature.celsius,
+                            attribute=lambda e: (
+                                e.defrost_sensor_temperature.celsius if e.defrost_sensor_temperature else None
+                            ),
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -670,7 +701,9 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.inverter_fin_temperature.celsius,
+                            attribute=lambda e: (
+                                e.inverter_fin_temperature.celsius if e.inverter_fin_temperature else None
+                            ),
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -731,6 +764,21 @@ async def async_setup_entry(
                     ]
 
                     # optional outdoor unit sensors
+                    if equipment.mode is not None:
+                        entities.append(
+                            DaikinOneEquipmentSensor(
+                                description=SensorEntityDescription(
+                                    key="mode",
+                                    name="Mode",
+                                    has_entity_name=True,
+                                    device_class=SensorDeviceClass.ENUM,
+                                ),
+                                data=data,
+                                device=equipment,
+                                attribute=lambda e: e.mode,
+                            )
+                        )
+
                     if equipment.reversing_valve is not DaikinOutdoorUnitReversingValveStatus.UNKNOWN:
                         entities.append(
                             DaikinOneEquipmentSensor(
@@ -751,7 +799,7 @@ async def async_setup_entry(
                             DaikinOneEquipmentSensor(
                                 description=SensorEntityDescription(
                                     key="crank_case_heater",
-                                    name="Crrank Case Heater",
+                                    name="Crank Case Heater",
                                     has_entity_name=True,
                                     device_class=SensorDeviceClass.ENUM,
                                 ),
@@ -805,7 +853,9 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.indoor_superheat_temperature.celsius,
+                            attribute=lambda e: (
+                                e.indoor_superheat_temperature.celsius if e.indoor_superheat_temperature else None
+                            ),
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -819,7 +869,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.liquid_temperature.celsius,
+                            attribute=lambda e: e.liquid_temperature.celsius if e.liquid_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -833,7 +883,7 @@ async def async_setup_entry(
                             ),
                             data=data,
                             device=equipment,
-                            attribute=lambda e: e.suction_temperature.celsius,
+                            attribute=lambda e: e.suction_temperature.celsius if e.suction_temperature else None,
                         ),
                         DaikinOneEquipmentSensor(
                             description=SensorEntityDescription(
@@ -852,315 +902,71 @@ async def async_setup_entry(
                     ]
 
                 case DaikinSplitUnit():
-                    entities += [
-                        # — Operation mode (Off / Heat / Cool) —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="mode",
-                                name="Operation Mode",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=None,
-                                icon="mdi:gesture-tap-button",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.mode,
-                        ),
+                    entities += _split_unit_sensors(data, equipment)
 
-                        # — Indoor temperature reading in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="indoor_temperature",
-                                name="Indoor Temperature",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.indoor_temperature.celsius,
-                        ),
-
-                        # — Indoor humidity percentage —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="indoor_humidity",
-                                name="Indoor Humidity",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.HUMIDITY,
-                                native_unit_of_measurement=PERCENTAGE,
-                                icon="mdi:water-percent",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.indoor_humidity,
-                        ),
-
-                        # — Heating setpoint in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="set_point_heat",
-                                name="Heat Setpoint",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer-chevron-up",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.set_point_heat.celsius,
-                        ),
-
-                        # — Cooling setpoint in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="set_point_cool",
-                                name="Cool Setpoint",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer-chevron-down",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.set_point_cool.celsius,
-                        ),
-
-                        # — Fan speed as percentage (0–100) —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="fan_speed_percent",
-                                name="Fan Speed Percentage",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=PERCENTAGE,
-                                icon="mdi:fan",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.fan_speed_percent,
-                        ),
-
-                        # — Flap swing position (0–100) —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="flap_swing",
-                                name="Flap Swing",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=PERCENTAGE,
-                                icon="mdi:fan-speed-1",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.flap_swing,
-                        ),
-
-                        # — Suction (coil) temperature in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="suction_temperature",
-                                name="Suction Temperature",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer-water",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.suction_temperature.celsius,
-                        ),
-
-                        # — Discharge (coil) temperature in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="discharge_temperature",
-                                name="Discharge Temperature",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.discharge_temperature.celsius,
-                        ),
-
-                        # — Cumulative operating time in minutes —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="operating_time",
-                                name="Operating Time",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.TOTAL_INCREASING,
-                                device_class=None,
-                                native_unit_of_measurement="min",
-                                icon="mdi:clock-outline",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.operating_time,
-                        ),
-
-                        # — Current equipment status code —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="equipment_status",
-                                name="Equipment Status",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=None,
-                                icon="mdi:information",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.equipment_status.value,
-                        ),
-
-                        # — Total energized time in minutes —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="energized_time",
-                                name="Energized Time",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.TOTAL_INCREASING,
-                                device_class=None,
-                                native_unit_of_measurement=UnitOfTime.MINUTES,
-                                icon="mdi:flash",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.energized_time,
-                        ),
-
-                        # — Total fan operation time in minutes —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="fan_operation_time",
-                                name="Fan Operation Time",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.TOTAL_INCREASING,
-                                device_class=None,
-                                native_unit_of_measurement=UnitOfTime.MINUTES,
-                                icon="mdi:fan",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.fan_operation_time,
-                        ),
-
-                        # — Electronic expansion valve open pulses —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="eev_open_pulses",
-                                name="EEV Open Pulses",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement="pulses",
-                                icon="mdi:thermometer-chevron-up",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.eev_open_pulses,
-                        ),
-
-                        # — Gas pipe coil temperature in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="gas_pipe_temp",
-                                name="Gas Pipe Temperature",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.gas_pipe_temp.celsius,
-                        ),
-
-                        # — Heat exchanger coil temperature in Celsius —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="heat_exchanger_temp",
-                                name="Heat Exchanger Temperature",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=SensorDeviceClass.TEMPERATURE,
-                                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                                icon="mdi:thermometer",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.heat_exchanger_temp.celsius,
-                        ),
-
-                        # — Fan tap (oscillation) active status —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="fan_tap_active",
-                                name="Fan Tap Active",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=None,
-                                icon="mdi:fan-alert",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.fan_tap_active,
-                        ),
-
-                        # — Humidifier on/off status —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="humidifier_on",
-                                name="Humidifier On",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=None,
-                                icon="mdi:water-percent",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.humidifier_on,
-                        ),
-
-                        # — Dehumidifier on/off status —
-                        DaikinOneEquipmentSensor(
-                            description=SensorEntityDescription(
-                                key="dehumidifier_on",
-                                name="Dehumidifier On",
-                                has_entity_name=True,
-                                state_class=SensorStateClass.MEASUREMENT,
-                                device_class=None,
-                                native_unit_of_measurement=None,
-                                icon="mdi:water-off",
-                            ),
-                            data=data,
-                            device=equipment,
-                            attribute=lambda e: e.dehumidifier_on,
-                        ),
-                    ]
                 case _:
                     log.warning(f"unexpected equipment: {equipment}")
 
     async_add_entities(entities, True)
+
+
+def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[SensorEntity]:
+    """Build P1/P2 entities while preserving unavailable telemetry as None."""
+
+    def sensor(
+        key: str,
+        name: str,
+        attribute: Callable[[DaikinSplitUnit], StateType],
+        *,
+        device_class: SensorDeviceClass | None = None,
+        unit_of_measurement: str | None = None,
+        state_class: SensorStateClass | None = None,
+        icon: str | None = None,
+    ) -> DaikinOneEquipmentSensor[DaikinSplitUnit]:
+        return DaikinOneEquipmentSensor(
+            description=SensorEntityDescription(
+                key=key,
+                name=name,
+                has_entity_name=True,
+                device_class=device_class,
+                native_unit_of_measurement=unit_of_measurement,
+                state_class=state_class,
+                icon=icon,
+            ),
+            data=data,
+            device=unit,
+            attribute=attribute,
+        )
+
+    temperature = SensorDeviceClass.TEMPERATURE
+    measurement = SensorStateClass.MEASUREMENT
+    total = SensorStateClass.TOTAL_INCREASING
+    return [
+        sensor("mode", "Operation Mode", lambda e: e.mode.name.replace("_", " ").title(), device_class=SensorDeviceClass.ENUM),
+        sensor(
+            "equipment_status",
+            "Equipment Status",
+            lambda e: e.equipment_status.name.replace("_", " ").title(),
+            device_class=SensorDeviceClass.ENUM,
+        ),
+        sensor("indoor_temperature", "Indoor Temperature", lambda e: e.indoor_temperature.celsius if e.indoor_temperature else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("indoor_humidity", "Indoor Humidity", lambda e: e.indoor_humidity, device_class=SensorDeviceClass.HUMIDITY, unit_of_measurement=PERCENTAGE, state_class=measurement),
+        sensor("set_point_heat", "Heat Setpoint", lambda e: e.set_point_heat.celsius if e.set_point_heat else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("set_point_cool", "Cool Setpoint", lambda e: e.set_point_cool.celsius if e.set_point_cool else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("fan_speed_code", "Fan Speed Code", lambda e: e.fan_speed_code, state_class=measurement),
+        sensor("flap_swing_code", "Flap Swing Code", lambda e: e.flap_swing_code, state_class=measurement),
+        sensor("suction_temperature", "Suction Temperature", lambda e: e.suction_temperature.celsius if e.suction_temperature else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("discharge_temperature", "Discharge Temperature", lambda e: e.discharge_temperature.celsius if e.discharge_temperature else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("operating_time", "Operating Time", lambda e: e.operating_time, unit_of_measurement=UnitOfTime.MINUTES, state_class=total),
+        sensor("energized_time", "Energized Time", lambda e: e.energized_time, unit_of_measurement=UnitOfTime.MINUTES, state_class=total),
+        sensor("fan_operation_time", "Fan Operation Time", lambda e: e.fan_operation_time, unit_of_measurement=UnitOfTime.MINUTES, state_class=total),
+        sensor("eev_open_pulses", "EEV Open Pulses", lambda e: e.eev_open_pulses, unit_of_measurement="pulses", state_class=measurement),
+        sensor("gas_pipe_temp", "Gas Pipe Temperature", lambda e: e.gas_pipe_temp.celsius if e.gas_pipe_temp else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("heat_exchanger_temp", "Heat Exchanger Temperature", lambda e: e.heat_exchanger_temp.celsius if e.heat_exchanger_temp else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
+        sensor("fan_tap_active", "Fan Tap Active", lambda e: e.fan_tap_active, device_class=SensorDeviceClass.ENUM),
+        sensor("humidifier_on", "Humidifier On", lambda e: e.humidifier_on, device_class=SensorDeviceClass.ENUM),
+        sensor("dehumidifier_on", "Dehumidifier On", lambda e: e.dehumidifier_on, device_class=SensorDeviceClass.ENUM),
+    ]
 
 
 class DaikinOneSensor[D: DaikinDevice](DaikinOneEntity[D], SensorEntity):
@@ -1214,11 +1020,9 @@ class DaikinOneEquipmentSensor[E: DaikinEquipment](DaikinOneSensor[E]):
                 raise ValueError("unexpected entity uid schema version")
 
     async def async_get_device(self) -> E:
-        thermostat = self._data.daikin.get_thermostat(
-            self._device.thermostat_id)
+        thermostat = self._data.daikin.get_thermostat(self._device.thermostat_id)
         # TODO: look at this type issue more later
-        # type: ignore[return-value]
-        return thermostat.equipment[self._device.id]
+        return thermostat.equipment[self._device.id]  # ty: ignore[invalid-return-type]
 
     def update_entity_attributes(self) -> None:
         self._attr_native_value = self._attribute(self._device)
