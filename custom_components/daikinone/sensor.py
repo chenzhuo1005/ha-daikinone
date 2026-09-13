@@ -958,8 +958,19 @@ def _split_unit_sensors(data: DaikinOneData, unit: DaikinSplitUnit) -> list[Sens
         sensor("indoor_humidity", "Indoor Humidity", lambda e: e.indoor_humidity, device_class=SensorDeviceClass.HUMIDITY, unit_of_measurement=PERCENTAGE, state_class=measurement),
         sensor("set_point_heat", "Heat Setpoint", lambda e: e.set_point_heat.celsius if e.set_point_heat else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
         sensor("set_point_cool", "Cool Setpoint", lambda e: e.set_point_cool.celsius if e.set_point_cool else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
-        sensor("fan_speed_code", "Fan Speed Code", lambda e: e.fan_speed_code, state_class=measurement),
-        sensor("flap_swing_code", "Flap Swing Code", lambda e: e.flap_swing_code, state_class=measurement),
+        # The One+ P1/P2 status screen defines this value as indoor-fan RPM.
+        # The legacy integration incorrectly exposed it as a percentage, which
+        # makes Home Assistant reject valid values above 100 (e.g. 109 RPM).
+        sensor(
+            "fan_speed_rpm",
+            "Fan Speed",
+            lambda e: e.fan_speed_code,
+            unit_of_measurement="rpm",
+            state_class=measurement,
+        ),
+        # This is the P1/P2 louvre-setting register, not a percentage.  Its
+        # model-specific encoding is not documented by Daikin's cloud API.
+        sensor("louvre_setting", "Louvre Setting", lambda e: e.flap_swing_code, state_class=measurement),
         sensor("suction_temperature", "Suction Temperature", lambda e: e.suction_temperature.celsius if e.suction_temperature else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
         sensor("discharge_temperature", "Discharge Temperature", lambda e: e.discharge_temperature.celsius if e.discharge_temperature else None, device_class=temperature, unit_of_measurement=UnitOfTemperature.CELSIUS, state_class=measurement),
         sensor("operating_time", "Operating Time", lambda e: e.operating_time, unit_of_measurement=UnitOfTime.MINUTES, state_class=total),
