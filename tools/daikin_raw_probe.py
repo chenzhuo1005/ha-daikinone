@@ -1,14 +1,14 @@
 """Fetch raw Daikin Skyport responses without running Home Assistant.
 
-Credentials are read from DAIKIN_ONE_EMAIL and DAIKIN_ONE_PASSWORD, or are
-requested interactively. Authentication tokens are never written or printed.
+Credentials are read from environment variables or a local, ignored ``.env``
+file, then requested interactively. Authentication tokens are never written or
+printed.
 """
 
 import argparse
 import getpass
 import json
 import os
-from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +19,21 @@ from urllib.request import Request, urlopen
 API_BASE_URL = "https://api.daikinskyport.com"
 LOGIN_URL = f"{API_BASE_URL}/users/auth/login"
 ENDPOINTS = ("locations", "devices", "deviceData")
+
+
+def load_local_env(path: Path = Path(".env")) -> None:
+    """Load simple KEY=VALUE entries without adding a runtime dependency."""
+    if not path.is_file():
+        return
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key:
+            os.environ.setdefault(key, value.strip().strip('"').strip("'"))
 
 
 def fetch_json(url: str, method: str = "GET", body: dict[str, Any] | None = None, access_token: str | None = None) -> Any:
@@ -48,9 +63,26 @@ def parse_args() -> argparse.Namespace:
 
 def summarize_device_data(device_data: list[dict[str, Any]]) -> dict[str, Any]:
     """Print metadata useful for comparing reported fields without changing raw data."""
-    fields: Counter[str] = Counter()
-    for device in device_data:
-        fields.update(device.get("data", {}).keys())
+    telemetry_fields = (
+        "mode",
+        "equipmentStatus",
+        "tempIndoor",
+        "P1P2IndoorUnitFanSpeed",
+        "P1P2IndoorUnitFanSpeedValid",
+        "P1P2IndoorUnitFlapSwing",
+        "P1P2IndoorUnitFlapSwingValid",
+        "P1P2IndoorSuctionAirThermistor",
+        "P1P2IndoorSuctionAirThermistorValid",
+        "P1P2IndoorUnitDischargeAirThermistor",
+        "P1P2IndoorUnitDischargeAirThermistorValid",
+        "P1P2IndoorUnitEEVOpenPulses",
+        "P1P2IndoorUnitEEVOpenPulsesValid",
+        "P1P2IndoorUnitHeatExchangerGasPipeThermistor",
+        "P1P2IndoorUnitHeatExchangerThermistor",
+        "P1P2IndoorUnitHeatExchangerThermistorValid",
+        "P1P2IndoorUnitOperatingTime",
+        "P1P2IndoorUnitEnergizedTime",
+    )
     return {
         "device_count": len(device_data),
         "devices": [
@@ -60,15 +92,18 @@ def summarize_device_data(device_data: list[dict[str, Any]]) -> dict[str, Any]:
                 "model": device.get("model"),
                 "online": device.get("online"),
                 "field_count": len(device.get("data", {})),
+                "p1p2_telemetry": {
+                    field: device.get("data", {}).get(field) for field in telemetry_fields
+                },
             }
             for device in device_data
         ],
-        "fields": dict(sorted(fields.items())),
     }
 
 
 def main() -> None:
     args = parse_args()
+    load_local_env()
     email = os.getenv("DAIKIN_ONE_EMAIL") or input("Daikin account email: ").strip()
     password = os.getenv("DAIKIN_ONE_PASSWORD") or getpass.getpass("Daikin account password: ")
     if not email or not password:
